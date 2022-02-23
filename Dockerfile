@@ -40,12 +40,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Export the Docker socket as a volume
 VOLUME /var/run/docker.sock
 
-## TODO: Use an entrypoint script that ensure that the Docker socket is available?
+# Set default env vars
+ENV TARGET_DIR /vyos
 
 # Switch working directory
-WORKDIR /vyos
+# RUN mkdir -p /vyos
+# WORKDIR /vyos
 
-# Add the build script and set it as the primary entrypoint.
-COPY scripts/build.sh /vyos/build.sh
-RUN chmod +x /vyos/build.sh
-ENTRYPOINT [ "/vyos/build.sh" ]
+# Add the scripts and setup entrypoint.
+COPY scripts/build.sh /build.sh
+COPY scripts/entrypoint.sh /entypoint.sh
+RUN chmod +x /build.sh && \
+    chmod +x /entypoint.sh
+ENTRYPOINT [ "/entypoint.sh" ]

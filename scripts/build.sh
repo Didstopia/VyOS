@@ -14,6 +14,7 @@ echo
 # Setup error handling.
 set -eE -o functrace -o pipefail
 
+# set -x
 SCRIPT_PATH_FULL=$(realpath $0)
 SCRIPT_PATH_DIR=$(dirname $SCRIPT_PATH_FULL)
 # echo "SCRIPT_PATH_FULL: $SCRIPT_PATH_FULL"
@@ -22,6 +23,16 @@ SCRIPT_PATH_DIR=$(dirname $SCRIPT_PATH_FULL)
 # Switch to the script directory and store its full path.
 CWD="$( cd "${SCRIPT_PATH_DIR}" && pwd )"
 # echo "Switching to directory: $CWD"
+
+# Check if target directory env var is set,
+# otherwise use the current working directory.
+if [ -z "${TARGET_DIR}" ]; then
+  TARGET_DIR="$CWD"
+fi
+
+# Ensure the working directory exists.
+mkdir -p "${TARGET_DIR}"
+# set +x
 
 # Setup default global variables.
 VYOS_VERSION="equuleus"
@@ -159,43 +170,49 @@ trap 'failure ${LINENO} "$BASH_COMMAND"' ERR
 # Function for building the project.
 build() {
   echoTrace "Building VyOS with parameters:"
+  echoTrace "* Path: ${TARGET_DIR}"
   echoTrace "* Version: ${VYOS_VERSION}"
   echoTrace "* Clean Build: ${VYOS_BUILD_CLEAN}"
   echo
 
-  # Ensure the working directory exists.
-  mkdir -p .build
+  # Switch to the working directory.
+  cd "${TARGET_DIR}"
+
+  # Ensure the build directory exists.
+  mkdir -p "${TARGET_DIR}/.build"
 
   # Clean the build directory if requested.
   if [ "${VYOS_BUILD_CLEAN}" == "true" ]; then
     echoTrace "Cleaning the build directory..."
-    rm -rf .build/*
+    rm -rf "${TARGET_DIR}/.build/*"
     echo
   fi
 
   ## FIXME: Checkout the correct version/branch and fetch latest changes (only if not a clean build?)
   # Clone the VyOS repository if it doesn't yet exist.
-  if [ ! -d .build/.git ]; then
+  if [ ! -d "${TARGET_DIR}/.build/.git" ]; then
     echoTrace "Cloning the VyOS repository..."
     # git clone -b ${VYOS_VERSION} --depth 1 --single-branch https://github.com/vyos/vyos-build .build/
     # git clone -b ${VYOS_VERSION} --depth 1 https://github.com/vyos/vyos-build .build/
-    git clone -b ${VYOS_VERSION} https://github.com/vyos/vyos-build .build/
+    git clone -b ${VYOS_VERSION} https://github.com/vyos/vyos-build "${TARGET_DIR}/.build/"
     echo
   else
     echoTrace "Ensuring the VyOS repository is up to date..."
-    cd .build
-    set -x
+    cd "${TARGET_DIR}/.build"
+    # set -x
     git fetch --depth 1 --prune
     git checkout ${VYOS_VERSION}
     git reset --hard origin/${VYOS_VERSION}
-    set +x
+    # pwd
+    # ls -lah .
+    # set +x
     cd ..
     # (cd .build/ && git fetch --depth 1 --prune && git checkout ${VYOS_VERSION} && git reset --hard origin/${VYOS_VERSION})
     echo
   fi
 
   # Switch to the build directory.
-  cd .build
+  cd "${TARGET_DIR}/.build"
 
   # Build the build container.
   echoTrace "Building the VyOS build container..."
@@ -220,8 +237,9 @@ build() {
   #   VYOS_OS="jessie64"
   # fi
   ## FIXME: Adjust version string according to the release name (eg. 1.2.0 is crux, 1.3.0 is equuleus, 1.4.0 is sagitta/current?)
-  BUILD_CMD="apt-get update && apt-get install -y --no-install-recommends dpkg-dev && ./configure --architecture ${VYOS_ARCH} --build-by Didstopia --build-type release --version 1.3.0 && sudo make iso && ls -l ./build/"
-  docker run --rm -it --privileged -v $(pwd):/vyos -w /vyos vyos/vyos-build:${VYOS_VERSION} bash -c "${BUILD_CMD}"
+  BUILD_CMD="./configure --architecture ${VYOS_ARCH} --build-by Didstopia --build-type release --version 1.3.0 && sudo make iso && ls -l ./build/"
+  # docker run --rm -it --privileged -v $(pwd):/vyos -w /vyos vyos/vyos-build:${VYOS_VERSION} bash -c "${BUILD_CMD}"
+  docker run --rm -it --privileged -v ${TARGET_DIR}/.build:/vyos -w /vyos vyos/vyos-build:${VYOS_VERSION} bash -c "${BUILD_CMD}"
   echo
 
   # VyOS build complete.
