@@ -219,6 +219,7 @@ build() {
   # elif [ "${VYOS_VERSION}" == "crux" ]; then
   #   VYOS_OS="jessie64"
   # fi
+  ## FIXME: Adjust version string according to the release name (eg. 1.2.0 is crux, 1.3.0 is equuleus, 1.4.0 is sagitta/current?)
   BUILD_CMD="apt-get update && apt-get install -y --no-install-recommends dpkg-dev && ./configure --architecture ${VYOS_ARCH} --build-by Didstopia --build-type release --version 1.3.0 && sudo make iso && ls -l ./build/"
   docker run --rm -it --privileged -v $(pwd):/vyos -w /vyos vyos/vyos-build:${VYOS_VERSION} bash -c "${BUILD_CMD}"
   echo

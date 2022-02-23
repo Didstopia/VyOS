@@ -42,7 +42,10 @@ VOLUME /var/run/docker.sock
 
 ## TODO: Use an entrypoint script that ensure that the Docker socket is available?
 
+# Switch working directory
+WORKDIR /vyos
+
 # Add the build script and set it as the primary entrypoint.
-COPY scripts/build.sh /build.sh
-RUN chmod +x /build.sh
-ENTRYPOINT [ "/build.sh" ]
+COPY scripts/build.sh /vyos/build.sh
+RUN chmod +x /vyos/build.sh
+ENTRYPOINT [ "/vyos/build.sh" ]
